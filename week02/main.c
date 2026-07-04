@@ -9,9 +9,10 @@ typedef union {
     uint16_t raw_value;
     struct {
         // HỌC VIÊN BẮT ĐẦU VIẾT CODE TỪ ĐÂY
-
-
-
+        uint16_t PWR_ON       : 1;
+        uint16_t ASSIST_LEVEL : 2;
+        uint16_t LIGHT_BRIGHT : 4;
+        uint16_t RESERVED     : 9;
 
         // HỌC VIÊN KẾT THÚC VIẾT CODE
     } fields;
@@ -33,7 +34,7 @@ void drive_sport(void) {
 // HỌC VIÊN BẮT ĐẦU VIẾT CODE TỪ ĐÂY
 
 
-
+void (*drive_modes[3])(void) = { drive_eco, drive_normal, drive_sport };
 
 // HỌC VIÊN KẾT THÚC VIẾT CODE
 
@@ -44,9 +45,11 @@ void Battery_Monitor(void (*overheat_cb)(void)) {
     int battery_temp = 45; 
     
     // HỌC VIÊN BẮT ĐẦU VIẾT CODE TỪ ĐÂY
-
-
-
+if (battery_temp > 40) {
+        if (overheat_cb != NULL) {
+            overheat_cb();
+        }
+    }
 
     // HỌC VIÊN KẾT THÚC VIẾT CODE
 }
@@ -63,9 +66,13 @@ uint32_t total_odometer = 0;
 
 void crash_simulation(void) {
     // HỌC VIÊN BẮT ĐẦU VIẾT CODE TỪ ĐÂY
-
-
-
+   int local_buffer[1000];
+    volatile int keep_going = 1;   
+    local_buffer[0] = 1;
+ 
+    if (keep_going && local_buffer[0]) {
+        crash_simulation();       
+    }
 
     // HỌC VIÊN KẾT THÚC VIẾT CODE
 }
@@ -85,7 +92,12 @@ int main() {
     // 2. Test Task 2
     printf("ENGINE CONTROLLING: \n");
     // HỌC VIÊN BẮT ĐẦU VIẾT CODE TỪ ĐÂY
-
+    uint16_t mode = my_bike.fields.ASSIST_LEVEL;
+    if (mode < (sizeof(drive_modes) / sizeof(drive_modes[0]))) {
+        drive_modes[mode]();
+    } else {
+        printf("Invalid mode!\n");
+    }
 
 
 
