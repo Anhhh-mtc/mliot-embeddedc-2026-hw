@@ -1,0 +1,29 @@
+Task 4.2:
+
+1. BIKE_MODEL (const char[]): .rodata
+Vì đây là mảng ký tự hằng số (const) chỉ đọc và không thay đổi trong quá trình chạy chương trình. Trình biên dịch xếp hằng số này vào vùng nhớ chỉ-đọc .rodata, được lưu sẵn trong Flash/ROM.
+
+2. total_odometer (uint32_t, biến toàn cục, khởi tạo = 0): .bss
+Vì đây là biến toàn cục được khởi tạo với giá trị 0 (giá trị mặc định). Vì giá trị này trùng với giá trị mặc định khi cấp điện, trình biên dịch không cần lưu giá trị thật sự nào trong file thực thi/Flash mà chỉ cần "đặt chỗ" một vùng nhớ trong RAM và gán bằng 0 lúc khởi động chương trình (startup code).
+
+3. current_speed (int, biến cục bộ trong hàm main): Stack
+Vì đây là biến local (cục bộ), chỉ tồn tại trong phạm vi và thời gian hàm main đang thực thi. Các biến local được cấp phát động trên ngăn xếp (Stack) mỗi lần hàm được gọi, và tự động giải phóng khi hàm kết thúc (return).
+
+
+Task 4.3: 
+
+Trên máy tính (chạy bằng GCC, có hệ điều hành):
+   Hàm crash_simulation() đệ quy vô hạn không có điều kiện dừng, mỗi lần gọi sẽ đẩy thêm 1 stack frame vào ngăn xếp. Ngăn xếp sẽ nhanh chóng bị đầy và tràn ra ngoài vùng nhớ được hệ điều hành cấp phát cho nó. Hệ điều hành phát hiện chương trình ghi đè ra vùng nhớ không hợp lệ, gửi tín hiệu SIGSEGV (Segmentation Fault) và kernel kill tiến trình ngay lập tức. Chương trình in ra thông báo "Segmentation fault (core dumped)" và kết thúc với exit code 139 (128 + 11).
+
+-Trên vi điều khiển thực tế (ví dụ ARM Cortex-M) Khi Stack tràn và đè lên các vùng nhớ khác CPU sẽ nhảy vào HardFault Handler - đây là exception handler mặc định xử lý các lỗi nghiêm trọng không xác định được nguyên nhân cụ thể (bus fault, memory access lỗi, v.v.). Nếu vi điều khiển có bật MPU để bảo vệ riêng vùng Stack, lỗi có thể được phát hiện sớm hơn và CPU sẽ nhảy vào MemManage Fault Handler thay vì HardFault Handler chung chung.
+
+
+Task 5 (Linker, Linker Script & Phân bổ Bộ nhớ Vật lý): Tối ưu hóa dung lượng với Linker Script 
+
+- cách 1: (uint16_t trip_history[20000] = {0};):
+Mảng được khởi tạo TOÀN BỘ bằng 0 sẽ được trình biên dịch xếp vào phân vùng .bss. Đặc điểm của .bss là chỉ lưu kích thước cần cấp phát trong RAM, KHÔNG lưu dữ liệu thật trong file Flash - vì giá trị mặc định khi cấp điện luôn là 0 nên không cần ghi sẵn dữ liệu này vào Flash. Vậy mảng 40KB này hầu như không tốn thêm dung lượng Flash, chỉ tốn 40KB trong RAM vì vẫn còn dư 128KB RAM còn trống .
+
+- Cách 2 (uint16_t trip_history[20000] = {1, 2, 3};):
+Có giá trị khởi tạo khác 0 (ít nhất 3 phần tử đầu khác 0) nên trình biên dịch buộc phải xếp biến này vào phân vùng .data. Đặc điểm của .data là phải lưu toàn bộ giá trị khởi tạo thật sự (cả 40KB) ngay trong Flash, để lúc khởi động (boot),đoạn startup code sẽ copy toàn bộ dữ liệu này từ Flash sang RAM. Vì Flash chỉ còn trống 20KB mà .data cần lưu 40KB dữ liệu khởi tạo, sẽ xảy ra lỗi linker "region FLASH overflowed" - không thể nạp chương trình xuống chip.
+
+Kết luận: Với ràng buộc Flash chỉ còn trống 20KB nhưng RAM còn dư 128KB, sử dụng cách 1 tận dụng đúng bản chất của phân vùng .bss (chỉ chiếm chỗ trong RAM lúc chạy, không chiếm dung lượng Flash) để giải quyết bài toán giới hạn bộ nhớ Flash.
